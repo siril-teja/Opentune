@@ -471,6 +471,8 @@ data class LibrarySettings(
     val songCacheMb: Int = 512,
     val downloadQuality: AudioQuality = AudioQuality.MAX,
     val downloadWifiOnly: Boolean = true,
+    /** Also keep a copy of each download in Music/OpenTune (see [com.opentune.data.download.MusicFolder]). */
+    val saveToMusicFolder: Boolean = false,
     /** Leave out songs and albums marked explicit; see [com.opentune.data.ContentFilter]. */
     val hideExplicit: Boolean = false,
     /** Notify about new albums and singles from followed artists. */

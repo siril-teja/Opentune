@@ -283,6 +283,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     bytes = target.length(), loudnessDb = StreamResolver.loudnessDbFor(id),
                 )
             }
+            // A copy in Music/OpenTune, when asked for; a failure there doesn't fail the download.
+            if (AppSettings.library.value.saveToMusicFolder) {
+                runCatching { MusicFolder.save(applicationContext, entry.song.toSong(), target) }
+                    .onFailure { Log.w(TAG, "Couldn't copy $id to Music", it) }
+            }
             // Lyrics too, so they show offline; a miss doesn't fail the download.
             runCatching {
                 LyricsRepository.saveOffline(id, entry.song.title, entry.song.artist, parseDuration(entry.song.durationText))

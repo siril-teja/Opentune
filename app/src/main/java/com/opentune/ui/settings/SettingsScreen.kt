@@ -1167,6 +1167,27 @@ private fun settingsSections(
                 Entry("Download on Wi-Fi only", "mobile data metered") {
                     ToggleRow("Download on Wi-Fi only", lib.downloadWifiOnly, { v -> AppSettings.updateLibrary { it.copy(downloadWifiOnly = v) } }, summary = "Waits for Wi-Fi before saving songs", icon = Icons.Rounded.Wifi)
                 },
+                Entry("Also save to Music folder", "music folder storage keep uninstall copy") {
+                    val supported = com.opentune.data.download.MusicFolder.supported
+                    ToggleRow(
+                        "Also save to Music folder",
+                        lib.saveToMusicFolder && supported,
+                        { v ->
+                            AppSettings.updateLibrary { it.copy(saveToMusicFolder = v) }
+                            // Songs downloaded before it was turned on get their copy now.
+                            if (v) scope.launch(Dispatchers.IO) {
+                                com.opentune.data.download.Downloads.doneNow().forEach { e ->
+                                    val file = e.path?.let { java.io.File(it) }?.takeIf { it.exists() } ?: return@forEach
+                                    runCatching { com.opentune.data.download.MusicFolder.save(context, e.song.toSong(), file) }
+                                }
+                            }
+                        },
+                        summary = if (supported) "Keeps a copy of each download in Music/OpenTune: it stays if the app is uninstalled, and other music apps can play it"
+                        else "Needs Android 10 or newer",
+                        icon = Icons.Rounded.Download,
+                        enabled = supported,
+                    )
+                },
             ),
         ),
         Section(

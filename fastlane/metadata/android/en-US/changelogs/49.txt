@@ -1,0 +1,1 @@
+• Settings › Downloads › Also save to Music folder: keeps a copy of each download in Music/OpenTune, which stays if the app is uninstalled
