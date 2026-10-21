@@ -178,16 +178,18 @@ object TrackNameCleaner {
         RegexOption.IGNORE_CASE,
     )
     private val CHANNEL_SUFFIX = Regex("""\s*(?:VEVO|- Topic|Official|Music)$""", RegexOption.IGNORE_CASE)
+    /** For showing: "Lofi Music" is a channel's real name, so "Music" stays. */
+    private val CHANNEL_SUFFIX_SHOWN = Regex("""\s*(?:VEVO|- Topic|Official)$""", RegexOption.IGNORE_CASE)
 
     data class Cleaned(val title: String, val artist: String)
 
     /**
-     * With [keepFeatures], for showing rather than matching: "(feat. …)" stays
-     * in the title and every credited artist stays.
+     * With [forDisplay], for showing rather than matching: "(feat. …)" stays
+     * in the title, every credited artist stays, and a channel keeps "Music".
      */
-    fun clean(title: String, artist: String, keepFeatures: Boolean = false): Cleaned {
+    fun clean(title: String, artist: String, forDisplay: Boolean = false): Cleaned {
         var t = RELEASE_SUFFIX.replace(NOISE.replace(title, ""), "")
-        var a = CHANNEL_SUFFIX.replace(artist.trim(), "").trim()
+        var a = (if (forDisplay) CHANNEL_SUFFIX_SHOWN else CHANNEL_SUFFIX).replace(artist.trim(), "").trim()
         // "Artist - Title" uploads: take the artist from the title when it
         // agrees with the channel (which is often the same name, unspaced).
         val dash = Regex("""\s+[-–—]\s+""").find(t)
@@ -201,7 +203,7 @@ object TrackNameCleaner {
                 t = right
             }
         }
-        if (!keepFeatures) {
+        if (!forDisplay) {
             t = FEAT.replace(t, "")
             a = FEAT.replace(a, "").substringBefore(",").substringBefore(" & ").trim()
         }

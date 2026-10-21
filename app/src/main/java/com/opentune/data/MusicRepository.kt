@@ -515,11 +515,11 @@ object MusicRepository {
         } catch (_: Exception) {
             null
         }
-        val song = named ?: Song(videoId, "YouTube video", "", "https://i.ytimg.com/vi/$videoId/hqdefault.jpg", isVideo = true)
+        val song = named ?: Song(videoId, "YouTube video", "", videoThumbnail(videoId), isVideo = true)
         return (listOf(song) + queue) to 0
     }
 
-    /** A video's title, channel and picture as YouTube describes it to embeds; null when it won't say. */
+    /** A video's title and channel as YouTube describes it to embeds; null when it won't say. */
     private suspend fun upload(videoId: String): Song? = io {
         val url = "https://www.youtube.com/oembed".toHttpUrl().newBuilder()
             .addQueryParameter("url", "https://www.youtube.com/watch?v=$videoId")
@@ -562,6 +562,12 @@ internal fun songFromEmbedInfo(videoId: String, json: String): Song? {
     val o = runCatching { Json.parseToJsonElement(json).jsonObject }.getOrNull() ?: return null
     val title = o["title"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: return null
     val channel = o["author_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
-    val named = com.opentune.data.lyrics.TrackNameCleaner.clean(title, channel, keepFeatures = true)
-    return Song(videoId, named.title, named.artist, o["thumbnail_url"]?.jsonPrimitive?.contentOrNull, isVideo = true)
+    val named = com.opentune.data.lyrics.TrackNameCleaner.clean(title, channel, forDisplay = true)
+    return Song(videoId, named.title, named.artist, videoThumbnail(videoId), isVideo = true)
 }
+
+/**
+ * The 16:9 still every video has. The 4:3 one oEmbed names is letterboxed,
+ * and artwork is cropped square, so its black bars would show.
+ */
+internal fun videoThumbnail(videoId: String) = "https://i.ytimg.com/vi/$videoId/mqdefault.jpg"

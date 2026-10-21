@@ -144,7 +144,7 @@ fun SearchScreen(
 
         val pasted = link
         when {
-            pasted != null -> LinkResult(pasted, contentPadding, onPlay = onPlay, onRetry = vm::retryLink)
+            pasted != null -> LinkResult(pasted, contentPadding, onPlay = onPlay)
             submitted == null || submitted != query.trim() -> Typing(
                 query = query,
                 suggestions = suggestions,
@@ -302,18 +302,17 @@ private fun sectionOf(r: SearchResult): String = when (r) {
 
 /** The video a pasted YouTube link points at: it plays straight away, and can be downloaded from here. */
 @Composable
-private fun LinkResult(link: SearchViewModel.PastedLink, contentPadding: PaddingValues, onPlay: (Song) -> Unit, onRetry: () -> Unit) {
-    when (val state = link.song) {
-        is UiState.Loading -> Column(Modifier.padding(top = 8.dp)) { SongRowPlaceholder() }
-        is UiState.Error -> Box(Modifier.fillMaxSize().padding(contentPadding), Alignment.Center) {
-            ErrorState(state.message, onRetry)
-        }
-        is UiState.Success -> LazyColumn(contentPadding = contentPadding, modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
-            item(key = "link:${link.videoId}") {
-                TopResult(state.data, label = "From your link", onPlay = { onPlay(state.data) }) {
-                    DownloadButton(state.data)
-                    Spacer(Modifier.width(8.dp))
-                }
+private fun LinkResult(link: SearchViewModel.PastedLink, contentPadding: PaddingValues, onPlay: (Song) -> Unit) {
+    val song = link.song
+    if (song == null) {
+        Column(Modifier.padding(top = 8.dp)) { SongRowPlaceholder() }
+        return
+    }
+    LazyColumn(contentPadding = contentPadding, modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+        item(key = "link:${link.videoId}") {
+            TopResult(song, label = "From your link", onPlay = { onPlay(song) }) {
+                DownloadButton(song)
+                Spacer(Modifier.width(8.dp))
             }
         }
     }

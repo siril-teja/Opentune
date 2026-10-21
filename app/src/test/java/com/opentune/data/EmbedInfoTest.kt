@@ -12,7 +12,7 @@ class EmbedInfoTest {
         )!!
         assertEquals("Blinding Lights", song.title)
         assertEquals("The Weeknd", song.artist)
-        assertEquals("https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg", song.thumbnailUrl)
+        assertEquals("https://i.ytimg.com/vi/4NRXx6U8ABQ/mqdefault.jpg", song.thumbnailUrl)
         assertEquals("4NRXx6U8ABQ", song.videoId)
     }
 
@@ -20,9 +20,10 @@ class EmbedInfoTest {
         val song = songFromEmbedInfo("abc", """{"title":"Stay (feat. Justin Bieber) [Official Audio]","author_name":"The Kid LAROI"}""")!!
         assertEquals("Stay (feat. Justin Bieber)", song.title)
         assertEquals("The Kid LAROI", song.artist)
-        val plain = songFromEmbedInfo("abc", """{"title":"Kesariya Lo-fi Mix","author_name":"Lofi Beats"}""")!!
+        val plain = songFromEmbedInfo("abc", """{"title":"Kesariya Lo-fi Mix","author_name":"Lofi Music"}""")!!
         assertEquals("Kesariya Lo-fi Mix", plain.title)
-        assertEquals("Lofi Beats", plain.artist)
+        assertEquals("Lofi Music", plain.artist)
+        assertEquals("Arijit Singh", songFromEmbedInfo("abc", """{"title":"Tum Hi Ho","author_name":"Arijit Singh - Topic"}""")!!.artist)
     }
 
     @Test fun noTitleNoSong() {
