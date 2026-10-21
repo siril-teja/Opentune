@@ -117,19 +117,7 @@ class SearchViewModel : ViewModel() {
         linkJob?.cancel()
         _link.value = PastedLink(id, UiState.Loading)
         linkJob = viewModelScope.launch {
-            val queue = try {
-                MusicRepository.watchQueue(id)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _link.value = PastedLink(id, UiState.Error(friendlyError(e)))
-                return@launch
-            }
-            val at = queue.indexOfFirst { it.videoId == id }
-            if (at < 0) {
-                _link.value = PastedLink(id, UiState.Error("Couldn't find that video on YouTube."))
-                return@launch
-            }
+            val (queue, at) = MusicRepository.linkQueue(id)
             _link.value = PastedLink(id, UiState.Success(queue[at]))
             _playLink.trySend(queue to at)
         }

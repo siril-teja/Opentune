@@ -181,7 +181,11 @@ object TrackNameCleaner {
 
     data class Cleaned(val title: String, val artist: String)
 
-    fun clean(title: String, artist: String): Cleaned {
+    /**
+     * With [keepFeatures], for showing rather than matching: "(feat. …)" stays
+     * in the title and every credited artist stays.
+     */
+    fun clean(title: String, artist: String, keepFeatures: Boolean = false): Cleaned {
         var t = RELEASE_SUFFIX.replace(NOISE.replace(title, ""), "")
         var a = CHANNEL_SUFFIX.replace(artist.trim(), "").trim()
         // "Artist - Title" uploads: take the artist from the title when it
@@ -197,8 +201,10 @@ object TrackNameCleaner {
                 t = right
             }
         }
-        t = FEAT.replace(t, "")
-        a = FEAT.replace(a, "").substringBefore(",").substringBefore(" & ").trim()
+        if (!keepFeatures) {
+            t = FEAT.replace(t, "")
+            a = FEAT.replace(a, "").substringBefore(",").substringBefore(" & ").trim()
+        }
         t = t.replace(Regex("""\s*["“”]\s*"""), " ").replace(Regex("\\s+"), " ").trim()
         return Cleaned(t.ifEmpty { title.trim() }, a.ifEmpty { artist.trim() })
     }
