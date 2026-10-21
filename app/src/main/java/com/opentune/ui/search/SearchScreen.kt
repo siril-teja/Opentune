@@ -368,8 +368,10 @@ private fun TopResult(
             Artwork(song.thumbnailUrl.artworkAt(CARD_ART_PX), Modifier.size(84.dp), MaterialTheme.shapes.medium)
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
-                Text(song.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                com.opentune.ui.components.SubtitleLine(song.artist, explicit = song.isExplicit == true, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                val names by com.opentune.data.library.LibraryStore.renamed.collectAsState()
+                val shown = names[song.videoId]
+                Text(shown?.title ?: song.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                com.opentune.ui.components.SubtitleLine(shown?.artist ?: song.artist, explicit = song.isExplicit == true, color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
             actions()
             FilledIconButton(onClick = onPlay, modifier = Modifier.size(48.dp)) { Icon(Icons.Filled.PlayArrow, "Play") }

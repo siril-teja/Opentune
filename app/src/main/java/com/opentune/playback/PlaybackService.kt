@@ -223,6 +223,25 @@ class PlaybackService : MediaLibraryService() {
             AppSettings.playback.map { it.autoplay }.distinctUntilChanged().collect { extendQueueIfNeeded() }
         }
         scope.launch { trackListening(player) }
+        // A song renamed while queued takes its new name at once, in the
+        // notification too; back to the one it came with when the rename goes.
+        scope.launch {
+            var before = LibraryStore.renamed.value
+            LibraryStore.renamed.collect { names ->
+                val was = before
+                before = names
+                for (i in 0 until player.mediaItemCount) {
+                    val item = player.getMediaItemAt(i)
+                    val id = item.mediaId
+                    if (names[id] == was[id]) continue
+                    val title = names[id]?.title ?: was[id]?.originalTitle ?: continue
+                    val artist = names[id]?.artist ?: was[id]?.originalArtist ?: continue
+                    if (item.mediaMetadata.title?.toString() == title && item.mediaMetadata.artist?.toString() == artist) continue
+                    // Same URI, so ExoPlayer updates the item in place without rebuffering.
+                    player.replaceMediaItem(i, item.buildUpon().setMediaMetadata(item.mediaMetadata.buildUpon().setTitle(title).setArtist(artist).build()).build())
+                }
+            }
+        }
         scope.launch {
             AppSettings.playback.map { listOf(it.losslessStreaming, it.losslessUnmeteredOnly, it.losslessHiRes, it.jioSaavnQuality, it.qobuzRelayUrl, it.wifiQuality, it.mobileQuality) }
                 .distinctUntilChanged().collect {

@@ -2,6 +2,7 @@ package com.opentune.data.history
 
 import android.content.Context
 import com.opentune.data.DebugLog as Log
+import com.opentune.data.library.unnamed
 import com.opentune.data.model.Song
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -80,7 +81,9 @@ object History {
     }
 
     /** Records a listen and returns its key for [updateListened]. */
-    fun record(song: Song, listenedMs: Long): Long {
+    fun record(played: Song, listenedMs: Long): Long {
+        // Under the name it came with; a rename is shown over it.
+        val song = played.unnamed()
         val now = System.currentTimeMillis()
         val r = PlayRecord(song.videoId, song.title, song.artist, song.thumbnailUrl, song.durationText, song.albumName, now, listenedMs, song.isExplicit)
         _records.value = (listOf(r) + _records.value).take(MAX_RECORDS)

@@ -46,7 +46,8 @@ data class SongRef(
     fun toSong() = Song(videoId, title, artist, thumbnailUrl, durationText, albumName = albumName, isExplicit = explicit)
 
     companion object {
-        fun of(song: Song) = SongRef(song.videoId, song.title, song.artist, song.thumbnailUrl, song.durationText, song.albumName, song.isExplicit)
+        /** Kept under the name it came with: a rename is shown over it, and can be undone. */
+        fun of(song: Song) = song.unnamed().let { SongRef(it.videoId, it.title, it.artist, it.thumbnailUrl, it.durationText, it.albumName, it.isExplicit) }
     }
 }
 
@@ -81,6 +82,22 @@ data class SavedList(
     val savedAt: Long = System.currentTimeMillis(),
 )
 
+/** A name given to a song in the app, and the one it came with, so it can go back. */
+@Serializable
+data class SongName(val title: String, val artist: String, val originalTitle: String, val originalArtist: String)
+
+/** [this] under the name given to it in [names], if it was renamed. */
+fun Song.namedBy(names: Map<String, SongName>): Song =
+    names[videoId]?.let { copy(title = it.title, artist = it.artist) } ?: this
+
+/** [this] under the name given to it in the app, if it was renamed. */
+fun Song.named(): Song = namedBy(LibraryStore.renamed.value)
+
+/** [this] under the name it came with, when it carries the name given to it in the app. */
+fun Song.unnamed(): Song = LibraryStore.renamed.value[videoId]
+    ?.takeIf { it.title == title && it.artist == artist }
+    ?.let { copy(title = it.originalTitle, artist = it.originalArtist) } ?: this
+
 @Serializable
 private data class LibraryDocument(
     val liked: List<SongRef> = emptyList(),
@@ -93,6 +110,8 @@ private data class LibraryDocument(
     val hiddenSongs: List<HiddenSong> = emptyList(),
     /** "Don't play [artist]": their songs kept out of suggestions, newest first. */
     val hiddenArtists: List<HiddenArtist> = emptyList(),
+    /** Songs renamed in the app, by video id. Shown wherever the song is, and kept in backups. */
+    val renamed: Map<String, SongName> = emptyMap(),
 )
 
 /**
@@ -112,6 +131,9 @@ object LibraryStore {
 
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
+
+    private val _renamed = MutableStateFlow<Map<String, SongName>>(emptyMap())
+    val renamed: StateFlow<Map<String, SongName>> = _renamed.asStateFlow()
 
     private val _savedLists = MutableStateFlow<List<SavedList>>(emptyList())
     /** Albums and playlists saved with their heart, newest first. */
@@ -170,6 +192,7 @@ object LibraryStore {
         doc.value = d
         _liked.value = d.liked
         _playlists.value = d.playlists
+        _renamed.value = d.renamed
         _savedLists.value = d.savedLists
         _hidden.value = HiddenList(d.hiddenSongs, d.hiddenArtists)
         LibraryArtwork.keep(d.liked.map { it.thumbnailUrl } + d.playlists.flatMap { p -> p.songs.map { it.thumbnailUrl } })
@@ -178,6 +201,23 @@ object LibraryStore {
     // Locked: the playlist sync writes back from its own thread.
     @Synchronized
     private fun update(t: (LibraryDocument) -> LibraryDocument) = publish(t(doc.value))
+
+    /**
+     * Gives [song] a new name everywhere in the app. A blank field keeps the
+     * name it came with, and setting both back to that forgets the rename.
+     */
+    fun renameSong(song: Song, title: String, artist: String) = update { d ->
+        val was = d.renamed[song.videoId]
+        val originalTitle = was?.originalTitle ?: song.title
+        val originalArtist = was?.originalArtist ?: song.artist
+        val t = title.trim().ifEmpty { originalTitle }
+        val a = artist.trim().ifEmpty { originalArtist }
+        if (t == originalTitle && a == originalArtist) d.copy(renamed = d.renamed - song.videoId)
+        else d.copy(renamed = d.renamed + (song.videoId to SongName(t, a, originalTitle, originalArtist)))
+    }
+
+    /** Puts back the name [videoId] came with. */
+    fun forgetName(videoId: String) = update { d -> d.copy(renamed = d.renamed - videoId) }
 
     fun isLiked(videoId: String): Boolean = _liked.value.any { it.videoId == videoId }
 

@@ -7,6 +7,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import com.opentune.data.download.Downloads
+import com.opentune.data.library.named
 import com.opentune.data.innertube.UpgradedTracks
 import com.opentune.data.local.LocalMusic
 import com.opentune.data.model.Song
@@ -70,15 +71,15 @@ fun cacheKeyOf(uri: Uri): String? = videoIdOf(uri)?.let { id ->
 private const val QUALITY_PARAM = "q"
 private const val QUALITY_UPGRADED = "hq"
 
-fun Song.toMediaItem(): MediaItem =
+fun Song.toMediaItem(): MediaItem = named().let { shown ->
     MediaItem.Builder()
         .setMediaId(videoId)
         .setUri(trackUri(videoId))
         .apply { if (Radio.isRadio(videoId) && Radio.station(videoId)?.hls == true) setMimeType(MimeTypes.APPLICATION_M3U8) }
         .setMediaMetadata(
             MediaMetadata.Builder()
-                .setTitle(title)
-                .setArtist(artist)
+                .setTitle(shown.title)
+                .setArtist(shown.artist)
                 // A downloaded cover keeps the notification and lock screen right offline.
                 .setArtworkUri(Downloads.artFor(videoId)?.let(Uri::fromFile) ?: Subsonic.resolveCover(thumbnailUrl)?.let(Uri::parse))
                 .setAlbumTitle(albumName)
@@ -97,6 +98,7 @@ fun Song.toMediaItem(): MediaItem =
                 .build(),
         )
         .build()
+}
 
 fun MediaItem.toSong(): Song =
     Song(

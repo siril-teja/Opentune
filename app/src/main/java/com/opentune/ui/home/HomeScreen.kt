@@ -251,7 +251,9 @@ private fun Recents(songs: List<Song>, asGrid: Boolean, actions: SongActions, on
                     contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
                     itemsIndexed(songs, key = { _, song -> song.videoId }) { i, song ->
-                        ItemCard(song.title, song.artist, song.thumbnailUrl, null, onClick = { actions.playAll(songs, i, false, "Recents") }, explicit = song.isExplicit == true)
+                        val names by com.opentune.data.library.LibraryStore.renamed.collectAsState()
+                        val shown = names[song.videoId]
+                        ItemCard(shown?.title ?: song.title, shown?.artist ?: song.artist, song.thumbnailUrl, null, onClick = { actions.playAll(songs, i, false, "Recents") }, explicit = song.isExplicit == true)
                     }
                 }
             } else {
