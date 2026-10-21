@@ -53,6 +53,11 @@ class SearchViewModel : ViewModel() {
     private val _playLink = Channel<Pair<List<Song>, Int>>(Channel.CONFLATED)
     val playLink = _playLink.receiveAsFlow()
 
+    /** A pasted playlist, album or channel link opens its page, once per link. */
+    private val _openLink = Channel<String>(Channel.CONFLATED)
+    val openLink = _openLink.receiveAsFlow()
+    private var opened: String? = null
+
     private var searchJob: Job? = null
     private var linkJob: Job? = null
 
@@ -63,7 +68,7 @@ class SearchViewModel : ViewModel() {
     @OptIn(FlowPreview::class)
     private suspend fun watchSuggestions() {
         _query.map { it.trim() }.distinctUntilChanged().debounce(220).collectLatest { q ->
-            if (q.isEmpty() || q == _submitted.value || _link.value != null) {
+            if (q.isEmpty() || q == _submitted.value || Links.parse(q) != null) {
                 _suggestions.value = emptyList()
                 return@collectLatest
             }
@@ -79,8 +84,9 @@ class SearchViewModel : ViewModel() {
     fun submit(value: String) {
         val q = value.trim()
         if (q.isEmpty()) return
-        // A link isn't searched for: it's already being played.
+        // A link isn't searched for: it's already playing, or its page opens again.
         if (_link.value != null) return
+        (Links.parse(q) as? LinkTarget.Browse)?.let { _openLink.trySend(it.browseId); return }
         _query.value = q
         _submitted.value = q
         AppSettings.addRecentSearch(q)
@@ -95,9 +101,13 @@ class SearchViewModel : ViewModel() {
 
     fun retry() = run()
 
-    /** Notices a youtube.com, youtu.be or music.youtube.com video link as it's pasted. */
+    /** Notices a youtube.com, youtu.be or music.youtube.com link as it's pasted: a video, or a page to open. */
     private fun readLink(text: String) {
-        val id = (Links.parse(text) as? LinkTarget.Song)?.videoId
+        val target = Links.parse(text)
+        val page = (target as? LinkTarget.Browse)?.browseId
+        if (page != null && page != opened) _openLink.trySend(page)
+        opened = page
+        val id = (target as? LinkTarget.Song)?.videoId
         if (id == _link.value?.videoId) return
         linkJob?.cancel()
         if (id == null) {
