@@ -27,8 +27,8 @@ concurrency:
 
 jobs:
   deploy:
-    # A run on another branch has nothing new for the site.
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main'
+    # A run on another branch has nothing new for the site. Forks don't publish it.
+    if: github.repository == 'justshivv/Opentune' && (github.event_name != 'workflow_run' || github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     environment:
       name: github-pages

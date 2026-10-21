@@ -1,0 +1,83 @@
+# Once a week, brings the original project's changes (github.com/justshivv/Opentune)
+# here, so fixes for YouTube changes aren't missed.
+#
+# When they merge cleanly, they go on the upstream-sync branch with a pull request
+# to review, and CI is started on it. When they clash with this fork's changes (or
+# change workflow files, which this job's token may not push), an issue lists what
+# came in and what clashed, to merge by hand.
+#
+# Opening the pull request needs Settings > Actions > General > "Allow GitHub
+# Actions to create and approve pull requests"; without it the issue is opened instead.
+name: Upstream sync
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: upstream-sync
+
+jobs:
+  sync:
+    if: github.repository != 'justshivv/Opentune'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM: https://github.com/justshivv/Opentune.git
+      TITLE: Changes from the original OpenTune
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM"
+          git fetch --quiet upstream main
+          count=$(git rev-list --count HEAD..upstream/main)
+          if [ "$count" = 0 ]; then
+            echo "Nothing new upstream."
+            exit 0
+          fi
+          log=$(git log --no-merges -n 50 --format='- %s' HEAD..upstream/main)
+
+          git checkout -B upstream-sync
+          reason=""
+          if git merge --no-edit upstream/main > merge.log 2>&1; then
+            if git push --force origin upstream-sync 2> push.log; then
+              existing=$(gh pr list --head upstream-sync --state open --json number --jq '.[].number' | head -n 1)
+              body=$(printf '%s new commits from the original project.\n\n%s\n\nCI runs on this branch; merge when it is green.' "$count" "$log")
+              if [ -n "$existing" ]; then
+                gh pr edit "$existing" --body "$body"
+              elif ! gh pr create --head upstream-sync --base main --title "$TITLE" --body "$body"; then
+                reason="The branch upstream-sync has them merged, but a pull request couldn't be opened (see Settings > Actions > General > Allow GitHub Actions to create and approve pull requests)."
+              fi
+              # A push made with this job's token starts no workflows of its own.
+              gh workflow run ci.yml --ref upstream-sync || true
+            else
+              reason="They change workflow files, which this job can't push. Merge them by hand."
+            fi
+          else
+            clashes=$(git diff --name-only --diff-filter=U | sed 's/^/- /')
+            git merge --abort
+            reason=$(printf 'They clash with this fork in:\n\n%s\n\nMerge them by hand.' "$clashes")
+          fi
+
+          [ -z "$reason" ] && exit 0
+          body=$(printf '%s new commits from the original project:\n\n%s\n\n%s' "$count" "$log" "$reason")
+          issue=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[].number' | head -n 1)
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi
