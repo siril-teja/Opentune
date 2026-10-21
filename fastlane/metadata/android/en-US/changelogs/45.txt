@@ -1,0 +1,1 @@
+• Rename any song from its menu: the new name shows in lists, the player and the notification, and goes back to the original whenever you like

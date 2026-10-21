@@ -83,6 +83,8 @@ import com.opentune.data.model.ROW_ART_PX
 import com.opentune.data.model.Song
 import com.opentune.data.download.DownloadState
 import com.opentune.data.download.Downloads
+import com.opentune.data.library.LibraryStore
+import com.opentune.data.library.namedBy
 import com.opentune.data.model.artworkAt
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -202,12 +204,15 @@ fun SongListItem(
     val hasMenu = onPlayNext != null || onAddToQueue != null || LocalSongMenu.current != null
     val download by remember(song.videoId) { Downloads.entry(song.videoId) }
         .collectAsState(Downloads.entryNow(song.videoId))
-    if (menuOpen) SongMenuSheet(song, onDismiss = { menuOpen = false })
+    // Under the name it was given in the app, if it was renamed.
+    val names by LibraryStore.renamed.collectAsState()
+    val shown = song.namedBy(names)
+    if (menuOpen) SongMenuSheet(shown, onDismiss = { menuOpen = false })
     val playback by AppSettings.playback.collectAsState()
     // Toward the end of the line plays next, toward the start adds to the queue.
     val swipes = swipeToQueue && playback.swipeToQueue
     SwipeToQueueRow(
-        title = song.title,
+        title = shown.title,
         onPlayNext = onPlayNext.takeIf { swipes },
         onAddToQueue = onAddToQueue.takeIf { swipes },
         modifier = modifier.fillMaxWidth(),
@@ -238,7 +243,7 @@ fun SongListItem(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    song.title,
+                    shown.title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyLarge,
@@ -246,7 +251,7 @@ fun SongListItem(
                     color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
                 SubtitleLine(
-                    listOfNotNull(song.artist.takeIf { it.isNotBlank() }, song.durationText).joinToString(" • "),
+                    listOfNotNull(shown.artist.takeIf { it.isNotBlank() }, song.durationText).joinToString(" • "),
                     explicit = song.isExplicit == true,
                 )
             }

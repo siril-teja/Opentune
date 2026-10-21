@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Favorite
@@ -46,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -135,6 +137,7 @@ fun SongMenuSheet(
     val local = !isYouTubeId(song.videoId)
     var pickPlaylist by remember { mutableStateOf(false) }
     var ringtone by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
     val close = onDismiss
 
     FloatingCard(
@@ -225,6 +228,8 @@ fun SongMenuSheet(
             if (download?.state == DownloadState.DONE || (local && Ringtones.canUse(song))) {
                 MenuRow(Icons.Rounded.NotificationsActive, "Set as ringtone") { ringtone = true }
             }
+            // A station's name and what's on air come from the station itself.
+            if (!com.opentune.data.radio.Radio.isRadio(song.videoId)) MenuRow(Icons.Rounded.Edit, "Rename") { renaming = true }
             if (actions != null) MenuRow(Icons.Rounded.ThumbDownOffAlt, "Not for me (dislike)") { close(); actions.dislike(song) }
             // Only suggestions are affected: the song still plays when picked, and stays in playlists.
             if (actions != null && !com.opentune.data.radio.Radio.isRadio(song.videoId)) {
@@ -248,7 +253,37 @@ fun SongMenuSheet(
         }
     }
     if (ringtone) RingtoneDialog(song, onDismiss = { ringtone = false; close() })
+    if (renaming) RenameSongDialog(song, onDismiss = { renaming = false }, onDone = { renaming = false; close() })
     if (pickPlaylist) AddToPlaylistDialog(song, onDone = { pickPlaylist = false; close() }, onDismiss = { pickPlaylist = false })
+}
+
+/**
+ * Renames a song everywhere in the app: lists, the player and the
+ * notification. A blank field keeps the name it came with.
+ */
+@Composable
+private fun RenameSongDialog(song: Song, onDismiss: () -> Unit, onDone: () -> Unit) {
+    val renamed by LibraryStore.renamed.collectAsState()
+    val given = renamed[song.videoId]
+    var title by remember { mutableStateOf(song.title) }
+    var artist by remember { mutableStateOf(song.artist) }
+    FloatingDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename song") },
+        text = {
+            Column {
+                OutlinedTextField(title, { title = it }, singleLine = true, label = { Text("Title") })
+                OutlinedTextField(artist, { artist = it }, singleLine = true, label = { Text("Artist") }, modifier = Modifier.padding(top = 8.dp))
+                if (given != null) {
+                    TextButton(onClick = { LibraryStore.forgetName(song.videoId); onDone() }, modifier = Modifier.padding(top = 4.dp)) {
+                        Text("Use the original: ${given.originalTitle}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        },
+        confirmButton = { SheetButton("Save", onClick = { LibraryStore.renameSong(song, title, artist); onDone() }) },
+        dismissButton = { SheetButton("Cancel", onClick = onDismiss, closes = true) },
+    )
 }
 
 /** A round quick action with its label underneath; filled when [active]. */
