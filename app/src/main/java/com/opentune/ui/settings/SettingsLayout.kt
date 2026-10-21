@@ -40,7 +40,7 @@ internal val SETTINGS_CATEGORIES = listOf(
         "audio", "Audio", "Quality, loudness, effects and output", Icons.Rounded.GraphicEq,
         listOf(
             "Streaming quality" to listOf("On Wi-Fi", "On mobile data", "Upgrade quality while playing"),
-            "Higher-quality sources" to listOf("Lossless streaming", "Unmetered networks only", "Prefer hi-res lossless", "Qobuz relay", "SpotiFLAC verification", "Disconnect SpotiFLAC"),
+            "Higher-quality sources" to listOf("Lossless streaming", "JioSaavn streams", "Unmetered networks only", "Prefer hi-res lossless", "Qobuz relay", "SpotiFLAC verification", "Disconnect SpotiFLAC"),
             "Loudness" to listOf("Loudness normalization", "Volume level", "Normalize on the phone speaker"),
             "Sound" to listOf("Equalizer", "Clarity", "Spatial audio", "System audio effects"),
             "Output" to listOf("Output precision", "Prefer USB DAC", "Bit-perfect USB output"),
@@ -116,7 +116,7 @@ internal val SETTINGS_CATEGORIES = listOf(
         "about", "About", "Updates, source code and diagnostics", Icons.Rounded.Info,
         listOf(
             "Updates" to listOf("What's new", "Check for updates", "Check for updates automatically"),
-            "OpenTune" to listOf("Show the welcome again", "Support OpenTune", "Star on GitHub", "Count this phone in usage numbers", "Source code", "Export diagnostics"),
+            "OpenTune" to listOf("Show the welcome again", "Support OpenTune", "Star on GitHub", "Source code", "Export diagnostics"),
         ),
     ),
 )
