@@ -26,12 +26,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,11 +46,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,8 +64,11 @@ import com.opentune.data.model.CARD_ART_PX
 import com.opentune.data.model.ROW_ART_PX
 import com.opentune.data.model.SearchFilter
 import com.opentune.data.model.SearchResult
+import com.opentune.data.download.DownloadState
+import com.opentune.data.download.Downloads
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.opentune.data.model.Song
 import com.opentune.data.model.UiState
 import com.opentune.data.model.artworkAt
@@ -79,6 +88,8 @@ fun SearchScreen(
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
     onBrowse: (BrowseItem) -> Unit,
+    /** Plays a pasted link's song with the radio after it, starting at the index given. */
+    onPlayLink: (List<Song>, Int) -> Unit,
     /** Opens the page that names a song from what the microphone hears. */
     onRecognize: (() -> Unit)? = null,
     vm: SearchViewModel = viewModel(),
@@ -88,12 +99,21 @@ fun SearchScreen(
     val filter by vm.filter.collectAsState()
     val suggestions by vm.suggestions.collectAsState()
     val results by vm.results.collectAsState()
+    val link by vm.link.collectAsState()
     val recent by AppSettings.recentSearches.collectAsState()
     val focus = LocalFocusManager.current
 
     fun submit(q: String) {
         focus.clearFocus()
         vm.submit(q)
+    }
+
+    val playLink by rememberUpdatedState(onPlayLink)
+    LaunchedEffect(vm) {
+        vm.playLink.collect { (queue, at) ->
+            focus.clearFocus()
+            playLink(queue, at)
+        }
     }
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars)) {
@@ -122,7 +142,9 @@ fun SearchScreen(
             keyboardActions = KeyboardActions(onSearch = { submit(query) }),
         )
 
+        val pasted = link
         when {
+            pasted != null -> LinkResult(pasted, contentPadding, onPlay = onPlay, onRetry = vm::retryLink)
             submitted == null || submitted != query.trim() -> Typing(
                 query = query,
                 suggestions = suggestions,
@@ -278,8 +300,65 @@ private fun sectionOf(r: SearchResult): String = when (r) {
     }
 }
 
+/** The video a pasted YouTube link points at: it plays straight away, and can be downloaded from here. */
 @Composable
-private fun TopResult(song: Song, onPlay: () -> Unit) {
+private fun LinkResult(link: SearchViewModel.PastedLink, contentPadding: PaddingValues, onPlay: (Song) -> Unit, onRetry: () -> Unit) {
+    when (val state = link.song) {
+        is UiState.Loading -> Column(Modifier.padding(top = 8.dp)) { SongRowPlaceholder() }
+        is UiState.Error -> Box(Modifier.fillMaxSize().padding(contentPadding), Alignment.Center) {
+            ErrorState(state.message, onRetry)
+        }
+        is UiState.Success -> LazyColumn(contentPadding = contentPadding, modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+            item(key = "link:${link.videoId}") {
+                TopResult(state.data, label = "From your link", onPlay = { onPlay(state.data) }) {
+                    DownloadButton(state.data)
+                    Spacer(Modifier.width(8.dp))
+                }
+            }
+        }
+    }
+}
+
+/** Download, with its progress round the edge; tap again to cancel, or to remove once it's done. */
+@Composable
+private fun DownloadButton(song: Song) {
+    val context = LocalContext.current
+    val downloads by Downloads.entries.collectAsState()
+    val download = downloads[song.videoId]
+    FilledTonalIconButton(
+        onClick = {
+            when (download?.state) {
+                DownloadState.DONE, DownloadState.QUEUED, DownloadState.DOWNLOADING -> Downloads.remove(context, song.videoId)
+                DownloadState.FAILED -> Downloads.retry(context, song.videoId)
+                null -> Downloads.enqueue(context, song)
+            }
+        },
+        modifier = Modifier.size(48.dp),
+    ) {
+        when (download?.state) {
+            DownloadState.DONE -> Icon(Icons.Filled.DownloadDone, "Downloaded")
+            DownloadState.QUEUED -> Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(strokeWidth = 2.5.dp, modifier = Modifier.size(28.dp))
+                Icon(Icons.Filled.Close, "Cancel download", Modifier.size(16.dp))
+            }
+            DownloadState.DOWNLOADING -> Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(progress = { download.progress }, strokeWidth = 2.5.dp, modifier = Modifier.size(28.dp))
+                Icon(Icons.Filled.Close, "Cancel download", Modifier.size(16.dp))
+            }
+            DownloadState.FAILED -> Icon(Icons.Filled.Download, "Retry download")
+            null -> Icon(Icons.Filled.Download, "Download")
+        }
+    }
+}
+
+@Composable
+private fun TopResult(
+    song: Song,
+    label: String = "Top result",
+    onPlay: () -> Unit,
+    /** More buttons, before Play. */
+    actions: @Composable () -> Unit = {},
+) {
     Surface(
         onClick = onPlay,
         shape = MaterialTheme.shapes.large,
@@ -289,10 +368,11 @@ private fun TopResult(song: Song, onPlay: () -> Unit) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Artwork(song.thumbnailUrl.artworkAt(CARD_ART_PX), Modifier.size(84.dp), MaterialTheme.shapes.medium)
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                Text("Top result", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
                 Text(song.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 com.opentune.ui.components.SubtitleLine(song.artist, explicit = song.isExplicit == true, color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
+            actions()
             FilledIconButton(onClick = onPlay, modifier = Modifier.size(48.dp)) { Icon(Icons.Filled.PlayArrow, "Play") }
         }
     }

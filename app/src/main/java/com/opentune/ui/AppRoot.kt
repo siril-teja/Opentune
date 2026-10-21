@@ -546,6 +546,8 @@ fun AppRoot(vm: PlayerViewModel) {
                             onPlayNext = vm::playNext,
                             onAddToQueue = vm::addToQueue,
                             onBrowse = { item: BrowseItem -> nav.openBrowse(item.browseId, item.type) },
+                            // A radio, though it arrives as a list: smart shuffle doesn't apply.
+                            onPlayLink = { queue, at -> vm.playAll(queue, at, false, "Search", fromList = false) },
                             onRecognize = { nav.navigate("recognize") },
                         )
                     }

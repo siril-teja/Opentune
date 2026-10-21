@@ -1,0 +1,2 @@
+• Paste a YouTube video link into Search to play it at once, with a button to download it
+• Updates come from github.com/siril-teja/opentune

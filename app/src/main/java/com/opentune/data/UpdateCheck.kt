@@ -43,10 +43,10 @@ import okhttp3.Request
  * such limit, and the APK's address is built from the release's file names.
  */
 object UpdateCheck {
-    private const val LATEST = "https://api.github.com/repos/justshivv/Opentune/releases/latest"
-    private const val LATEST_PAGE = "https://github.com/justshivv/Opentune/releases/latest"
-    private const val DOWNLOADS = "https://github.com/justshivv/Opentune/releases/download"
-    const val RELEASES_PAGE = "https://github.com/justshivv/Opentune/releases"
+    private const val LATEST = "https://api.github.com/repos/siril-teja/opentune/releases/latest"
+    private const val LATEST_PAGE = "https://github.com/siril-teja/opentune/releases/latest"
+    private const val DOWNLOADS = "https://github.com/siril-teja/opentune/releases/download"
+    const val RELEASES_PAGE = "https://github.com/siril-teja/opentune/releases"
     /** How often the automatic check goes online, at most. */
     private const val AUTO_EVERY_MS = 6L * 60 * 60 * 1000
     /**

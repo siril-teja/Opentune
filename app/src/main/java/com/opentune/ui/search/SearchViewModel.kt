@@ -5,18 +5,23 @@ import androidx.lifecycle.viewModelScope
 import com.opentune.data.MusicRepository
 import com.opentune.data.model.SearchFilter
 import com.opentune.data.model.SearchResult
+import com.opentune.data.model.Song
 import com.opentune.data.model.UiState
 import com.opentune.data.settings.AppSettings
+import com.opentune.ui.LinkTarget
+import com.opentune.ui.Links
 import com.opentune.ui.friendlyError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import com.opentune.data.innertube.StreamResolver
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +43,18 @@ class SearchViewModel : ViewModel() {
     private val _results = MutableStateFlow<UiState<List<SearchResult>>>(UiState.Loading)
     val results = _results.asStateFlow()
 
+    /** A YouTube video link in the box, and the song it names once that's been looked up. */
+    data class PastedLink(val videoId: String, val song: UiState<Song>)
+
+    private val _link = MutableStateFlow<PastedLink?>(null)
+    val link = _link.asStateFlow()
+
+    /** A pasted link plays as soon as it's read: the song and its radio, and where the song is in it. */
+    private val _playLink = Channel<Pair<List<Song>, Int>>(Channel.CONFLATED)
+    val playLink = _playLink.receiveAsFlow()
+
     private var searchJob: Job? = null
+    private var linkJob: Job? = null
 
     init {
         viewModelScope.launch { watchSuggestions() }
@@ -47,7 +63,7 @@ class SearchViewModel : ViewModel() {
     @OptIn(FlowPreview::class)
     private suspend fun watchSuggestions() {
         _query.map { it.trim() }.distinctUntilChanged().debounce(220).collectLatest { q ->
-            if (q.isEmpty() || q == _submitted.value) {
+            if (q.isEmpty() || q == _submitted.value || _link.value != null) {
                 _suggestions.value = emptyList()
                 return@collectLatest
             }
@@ -57,11 +73,14 @@ class SearchViewModel : ViewModel() {
 
     fun onQueryChange(value: String) {
         _query.value = value
+        readLink(value)
     }
 
     fun submit(value: String) {
         val q = value.trim()
         if (q.isEmpty()) return
+        // A link isn't searched for: it's already being played.
+        if (_link.value != null) return
         _query.value = q
         _submitted.value = q
         AppSettings.addRecentSearch(q)
@@ -75,6 +94,46 @@ class SearchViewModel : ViewModel() {
     }
 
     fun retry() = run()
+
+    fun retryLink() {
+        val id = _link.value?.videoId ?: return
+        lookUp(id)
+    }
+
+    /** Notices a youtube.com, youtu.be or music.youtube.com video link as it's pasted. */
+    private fun readLink(text: String) {
+        val id = (Links.parse(text) as? LinkTarget.Song)?.videoId
+        if (id == _link.value?.videoId) return
+        linkJob?.cancel()
+        if (id == null) {
+            _link.value = null
+            return
+        }
+        lookUp(id)
+    }
+
+    /** Finds the song for [id], with the radio YouTube would play after it, and plays them. */
+    private fun lookUp(id: String) {
+        linkJob?.cancel()
+        _link.value = PastedLink(id, UiState.Loading)
+        linkJob = viewModelScope.launch {
+            val queue = try {
+                MusicRepository.watchQueue(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _link.value = PastedLink(id, UiState.Error(friendlyError(e)))
+                return@launch
+            }
+            val at = queue.indexOfFirst { it.videoId == id }
+            if (at < 0) {
+                _link.value = PastedLink(id, UiState.Error("Couldn't find that video on YouTube."))
+                return@launch
+            }
+            _link.value = PastedLink(id, UiState.Success(queue[at]))
+            _playLink.trySend(queue to at)
+        }
+    }
 
     private fun run() {
         val q = _submitted.value ?: return
