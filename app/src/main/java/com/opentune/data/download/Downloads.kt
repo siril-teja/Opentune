@@ -49,9 +49,11 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import java.io.RandomAccessFile
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -151,6 +153,19 @@ object Downloads {
         val folder = entry.workId?.let { File(root, "$videoId.$it") } ?: root
         return File(folder, "$videoId.lyrics.json")
     }
+
+    /**
+     * What's downloaded, for Export data. Only the songs go in, not the audio,
+     * so a backup restored after a reinstall can fetch them again.
+     */
+    fun exportJson(): JsonElement = json.encodeToJsonElement(ListSerializer(SongRef.serializer()), _entries.value.values.map { it.song })
+
+    /** The songs a backup had downloaded that aren't downloaded here. */
+    fun missingFrom(backup: JsonElement): List<Song> =
+        runCatching { json.decodeFromJsonElement(ListSerializer(SongRef.serializer()), backup) }.getOrDefault(emptyList())
+            .filter { _entries.value[it.videoId]?.state != DownloadState.DONE && com.opentune.data.isYouTubeId(it.videoId) }
+            .distinctBy { it.videoId }
+            .map { it.toSong() }
 
     fun enqueue(context: Context, song: Song) {
         if (!com.opentune.data.isYouTubeId(song.videoId)) return
