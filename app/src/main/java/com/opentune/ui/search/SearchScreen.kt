@@ -58,6 +58,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.opentune.data.MusicRepository
 import com.opentune.data.model.BrowseItem
 import com.opentune.data.model.BrowseType
 import com.opentune.data.model.CARD_ART_PX
@@ -113,6 +114,13 @@ fun SearchScreen(
         vm.playLink.collect { (queue, at) ->
             focus.clearFocus()
             playLink(queue, at)
+        }
+    }
+    val browse by rememberUpdatedState(onBrowse)
+    LaunchedEffect(vm) {
+        vm.openLink.collect { browseId ->
+            focus.clearFocus()
+            browse(BrowseItem(browseId, "", "", null, MusicRepository.typeOf(browseId)))
         }
     }
 
