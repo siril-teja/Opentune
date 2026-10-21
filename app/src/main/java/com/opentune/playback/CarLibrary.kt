@@ -16,6 +16,7 @@ import com.opentune.data.account.AccountStore
 import com.opentune.data.download.Downloads
 import com.opentune.data.history.History
 import com.opentune.data.library.LibraryStore
+import com.opentune.data.library.named
 import com.opentune.data.model.BrowseType
 import com.opentune.data.model.CARD_ART_PX
 import com.opentune.data.model.HomeShelf
@@ -233,12 +234,14 @@ class CarLibrary(private val context: Context) {
 
     private fun song(parent: String, song: Song, group: String? = null): MediaItem {
         val id = "$parent$SEP${song.videoId}"
+        // Under the name it was given in the app, if it was renamed.
+        val shown = song.named()
         return MediaItem.Builder()
             .setMediaId(id)
             .setMediaMetadata(
                 MediaMetadata.Builder()
-                    .setTitle(song.title)
-                    .setArtist(song.artist)
+                    .setTitle(shown.title)
+                    .setArtist(shown.artist)
                     .setAlbumTitle(song.albumName)
                     .setArtworkUri(CarArtwork.uriFor(context, song.videoId, song.thumbnailUrl))
                     .setIsPlayable(true)

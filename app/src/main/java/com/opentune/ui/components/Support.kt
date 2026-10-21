@@ -37,7 +37,10 @@ import java.util.concurrent.TimeUnit
 
 /** Ways to back the project: a star on GitHub, or money over UPI. */
 object Support {
+    /** The original project, which stars and thank-yous go to. */
     const val REPO = "https://github.com/justshivv/Opentune"
+    /** This build's own source, which updates come from. */
+    const val SOURCE = "https://github.com/siril-teja/Opentune"
     const val UPI_ID = "whoosthis@axl"
     private const val PAYEE = "OpenTune"
     private const val NOTE = "Support OpenTune"
