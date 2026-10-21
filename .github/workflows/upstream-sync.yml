@@ -1,5 +1,7 @@
-# Once a week, brings the original project's changes (github.com/justshivv/Opentune)
-# here, so fixes for YouTube changes aren't missed.
+# Brings the original project's changes (github.com/justshivv/Opentune) here,
+# when started by hand from the Actions tab: say, when YouTube breaks playback
+# and the original may have the fix. Not on a schedule, since this fork has
+# chosen not to follow every change there.
 #
 # When they merge cleanly, they go on the upstream-sync branch with a pull request
 # to review, and CI is started on it. When they clash with this fork's changes (or
@@ -11,8 +13,6 @@
 name: Upstream sync
 
 on:
-  schedule:
-    - cron: "17 6 * * 1"
   workflow_dispatch:
 
 permissions:
