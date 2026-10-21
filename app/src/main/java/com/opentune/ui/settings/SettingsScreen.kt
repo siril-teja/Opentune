@@ -456,13 +456,16 @@ private fun settingsSections(
                         put("settings", AppSettings.exportJson())
                         put("history", History.exportJson())
                         put("library", LibraryStore.exportJson())
+                        put("downloads", com.opentune.data.download.Downloads.exportJson())
                     }
                     context.contentResolver.openOutputStream(uri)?.use { it.write(doc.toString().toByteArray()) }
                 }
-                "Exported settings, history, likes and playlists."
+                "Exported settings, history, likes, playlists and the list of downloads."
             }.getOrElse { "Export failed: ${it.message}" }
         }
     }
+    // Songs the imported backup had downloaded, offered for download again.
+    var redownload by remember { mutableStateOf<List<com.opentune.data.model.Song>>(emptyList()) }
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         scope.launch {
@@ -473,7 +476,8 @@ private fun settingsSections(
                 doc["settings"]?.let(AppSettings::importJson)
                 doc["history"]?.let(History::importJson)
                 doc["library"]?.let(LibraryStore::importJson)
-                "Imported settings, history, likes and playlists."
+                redownload = doc["downloads"]?.let(com.opentune.data.download.Downloads::missingFrom).orEmpty()
+                "Imported settings, history, likes and playlists.".takeIf { redownload.isEmpty() }
             }.getOrElse { "Import failed: ${it.message}" }
         }
     }
@@ -641,6 +645,16 @@ private fun settingsSections(
             },
             onSelect = { f -> AppSettings.updateLibrary { it.copy(localFolder = f) } },
             onDismiss = { folderDialog = false },
+        )
+    }
+    if (redownload.isNotEmpty()) {
+        val count = redownload.size
+        FloatingDialog(
+            onDismissRequest = { redownload = emptyList() },
+            title = { Text("Imported") },
+            text = { Text("Settings, history, likes and playlists are back. Download the $count ${if (count == 1) "song" else "songs"} that were downloaded before?") },
+            confirmButton = { SheetButton("Download", onClick = { redownload.forEach { com.opentune.data.download.Downloads.enqueue(context, it) }; redownload = emptyList() }) },
+            dismissButton = { SheetButton("Not now", onClick = { redownload = emptyList() }, closes = true) },
         )
     }
     message?.let { m ->
@@ -1223,10 +1237,10 @@ private fun settingsSections(
                     NavRow("Wrapped", onOpenWrapped, summary = "Your listening as an animated story", icon = Icons.Rounded.AutoAwesome)
                 },
                 Entry("Export data", "backup json") {
-                    NavRow("Export data", { exporter.launch("opentune-backup.json") }, summary = "Settings, history, likes and playlists, as one JSON file", icon = Icons.Rounded.Upload)
+                    NavRow("Export data", { exporter.launch("opentune-backup.json") }, summary = "Settings, history, likes, playlists and which songs are downloaded, as one JSON file", icon = Icons.Rounded.Upload)
                 },
                 Entry("Import data", "restore json") {
-                    NavRow("Import data", { importer.launch(arrayOf("application/json")) }, summary = "Replaces the settings, history, likes and playlists on this device", icon = Icons.Rounded.Download)
+                    NavRow("Import data", { importer.launch(arrayOf("application/json")) }, summary = "Replaces the settings, history, likes and playlists on this device, and offers to download your downloads again", icon = Icons.Rounded.Download)
                 },
                 Entry("Clear listening history", "delete history") {
                     NavRow("Clear listening history", { History.clear(); message = "Listening history cleared." }, summary = "Removes Recents and Replay data", icon = Icons.Rounded.DeleteSweep)

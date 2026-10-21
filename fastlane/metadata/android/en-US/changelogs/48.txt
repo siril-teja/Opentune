@@ -1,0 +1,1 @@
+• Export data includes which songs are downloaded; Import offers to download them again, so a reinstall loses nothing
