@@ -7,6 +7,8 @@ on:
     branches: ["**"]
     tags-ignore: ["v*"]
   pull_request:
+  # Started by the upstream sync, whose own pushes start no workflows.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
