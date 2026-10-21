@@ -158,7 +158,6 @@ fun AppRoot(vm: PlayerViewModel) {
     var update by remember { mutableStateOf<com.opentune.data.UpdateCheck.Release?>(null) }
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-            com.opentune.data.Usage.active()
             com.opentune.ui.components.Support.usedToday(appContext)
             while (true) {
                 if (com.opentune.data.settings.AppSettings.ui.value.checkForUpdates && update == null) {

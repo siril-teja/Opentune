@@ -84,7 +84,8 @@ class OpenTuneApp : Application(), SingletonImageLoader.Factory {
         com.opentune.data.releases.NewReleases.init(this)
         com.opentune.data.UpdateCheck.init(this)
         com.opentune.data.UpdateCheck.schedule(this)
-        com.opentune.data.Usage.init(this)
+        // Usage counting is gone; drop the installation ID and totals an earlier version kept.
+        deleteSharedPreferences("usage_v2")
         // Spotify sign-in is gone; drop any tokens an earlier version kept.
         deleteSharedPreferences("spotify")
         // The waveform seek bar is gone; drop the waveforms an earlier version saved.

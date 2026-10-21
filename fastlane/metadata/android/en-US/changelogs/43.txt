@@ -1,2 +1,4 @@
 • Paste a YouTube video link into Search to play it at once, with a button to download it
+• No usage counting: nothing about this phone is reported
+• Songs are looked up outside YouTube only when Lossless streaming or JioSaavn streams is turned on
 • Updates come from github.com/siril-teja/opentune

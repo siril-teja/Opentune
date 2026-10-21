@@ -22,7 +22,7 @@ enum class AudioQuality(val label: String, val summary: String, val maxKbps: Int
     LOW("Low", "About 64 kbps", 64),
     NORMAL("Normal", "About 128 kbps", 128),
     HIGH("High", "Opus up to 160 kbps", 160),
-    MAX("Max", "Fast start, then upgrade to the best available source", Int.MAX_VALUE),
+    MAX("Max", "The best stream YouTube offers", Int.MAX_VALUE),
 }
 
 @Serializable
@@ -364,8 +364,6 @@ data class InterfaceSettings(
     val hapticStrength: Float = 0.6f,
     /** Look for a new release once a day when the app opens. */
     val checkForUpdates: Boolean = true,
-    /** Add this phone to the app's anonymous usage counts (see Usage). */
-    val countUsage: Boolean = true,
     /** How the glass of the dock, buttons and bars looks. */
     val glassStyle: GlassStyle = GlassStyle.LIQUID,
     /** Pages blur and fade out as they scroll under the status bar. */

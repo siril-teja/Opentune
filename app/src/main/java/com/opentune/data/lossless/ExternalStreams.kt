@@ -1,7 +1,6 @@
 package com.opentune.data.lossless
 
 import com.opentune.data.settings.AppSettings
-import com.opentune.data.settings.AudioQuality
 import com.opentune.data.model.Song
 import com.opentune.data.innertube.StreamResolver
 import java.io.IOException
@@ -50,9 +49,12 @@ object ExternalStreams {
         reports[videoId] = detail
     }
 
+    /**
+     * Only when turned on in Settings: these look songs up on servers outside
+     * YouTube, so Max quality alone doesn't start them.
+     */
     fun allowed(lossless: Boolean? = null): Boolean = AppSettings.playback.value.let {
-        val maximum = AppSettings.effectiveAudioQuality == AudioQuality.MAX
-        val enabled = maximum || when (lossless) { true -> it.losslessStreaming; false -> it.jioSaavnQuality; null -> it.losslessStreaming || it.jioSaavnQuality }
+        val enabled = when (lossless) { true -> it.losslessStreaming; false -> it.jioSaavnQuality; null -> it.losslessStreaming || it.jioSaavnQuality }
         enabled && (lossless != false || AppSettings.effectiveAudioQuality.maxKbps >= 320) &&
             (!it.losslessUnmeteredOnly || !AppSettings.onMeteredNetwork())
     }

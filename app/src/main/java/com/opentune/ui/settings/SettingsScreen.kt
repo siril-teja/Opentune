@@ -693,13 +693,16 @@ private fun settingsSections(
                     })
                 },
                 Entry("Lossless streaming", "flac tidal amazon qobuz spotiflac") {
-                    ToggleRow("Lossless below Max", pb.losslessStreaming, { v -> AppSettings.updatePlayback { it.copy(losslessStreaming = v) } }, summary = "Also look for FLAC after playback starts at other quality levels. Max automatically checks highest-quality sources before YouTube.", icon = Icons.Rounded.HighQuality)
+                    ToggleRow("Lossless streaming", pb.losslessStreaming, { v -> AppSettings.updatePlayback { it.copy(losslessStreaming = v) } }, summary = "Look for FLAC on Tidal, Qobuz and Amazon through community servers. They see which song you're playing.", icon = Icons.Rounded.HighQuality)
+                },
+                Entry("JioSaavn streams", "saavn 320 kbps indian") {
+                    ToggleRow("JioSaavn streams", pb.jioSaavnQuality, { v -> AppSettings.updatePlayback { it.copy(jioSaavnQuality = v) } }, summary = "At Max quality, play JioSaavn's 320 kbps copy when it matches. JioSaavn sees which song you're playing.", icon = Icons.Rounded.HighQuality)
                 },
                 Entry("Unmetered networks only", "flac saavn mobile wifi data") {
-                    ToggleRow("Unmetered networks only", pb.losslessUnmeteredOnly, { v -> AppSettings.updatePlayback { it.copy(losslessUnmeteredOnly = v) } }, summary = "When on, mobile data uses YouTube even at Max. Turn off to try FLAC and JioSaavn on mobile data", icon = Icons.Rounded.Wifi)
+                    ToggleRow("Unmetered networks only", pb.losslessUnmeteredOnly, { v -> AppSettings.updatePlayback { it.copy(losslessUnmeteredOnly = v) } }, summary = "When on, mobile data uses YouTube only. Turn off to try FLAC and JioSaavn on mobile data", icon = Icons.Rounded.Wifi)
                 },
                 Entry("Prefer hi-res lossless", "24 bit flac qobuz") {
-                    ToggleRow("Prefer hi-res lossless", pb.losslessHiRes, { v -> AppSettings.updatePlayback { it.copy(losslessHiRes = v) } }, summary = "Prefer hi-res for background upgrades too. Max always checks hi-res first. Uses more data.", icon = Icons.Rounded.HighQuality)
+                    ToggleRow("Prefer hi-res lossless", pb.losslessHiRes, { v -> AppSettings.updatePlayback { it.copy(losslessHiRes = v) } }, summary = "With lossless streaming on, look for hi-res first. Uses more data.", icon = Icons.Rounded.HighQuality)
                 },
                 Entry("SpotiFLAC verification", "lossless session connect verify") {
                     SettingRow("SpotiFLAC verification", icon = Icons.Rounded.HighQuality, summary = if (losslessConnected) "Connected · tap to renew" else if (losslessNeedsVerification) "Verify again · provider session needs renewing" else "Optional · public providers work without it", onClick = { verifyLossless = true })
@@ -1338,15 +1341,6 @@ private fun settingsSections(
                 },
                 Entry("Check for updates automatically", "update new version release auto") {
                     ToggleRow("Check for updates automatically", ui.checkForUpdates, { v -> AppSettings.updateUi { it.copy(checkForUpdates = v) }; com.opentune.data.UpdateCheck.schedule(context) }, summary = "Looks for a new release on GitHub every few hours, in the background too, and offers to install it", icon = Icons.Rounded.SystemUpdate)
-                },
-                Entry("Count this phone in usage numbers", "anonymous usage statistics analytics counter privacy telemetry") {
-                    ToggleRow(
-                        "Count this phone in usage numbers",
-                        ui.countUsage,
-                        { v -> AppSettings.updateUi { it.copy(countUsage = v) }; com.opentune.data.Usage.consentChanged(v) },
-                        summary = "Shares a random installation ID, app version, active dates and daily play totals. No hardware ID, account or song names. Reinstalls get a new ID; updates keep it.",
-                        icon = Icons.Rounded.Info,
-                    )
                 },
                 Entry("Support OpenTune", "donate upi pay money tip support developer") {
                     NavRow("Support OpenTune", { supportDialog = true }, summary = "A small thank-you helps keep OpenTune going", icon = Icons.Rounded.Favorite)
