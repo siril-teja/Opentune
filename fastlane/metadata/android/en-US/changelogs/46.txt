@@ -1,0 +1,2 @@
+• Renamed songs show their new names in Android Auto too
+• Settings › Source code opens this fork; Star on GitHub still goes to the original OpenTune
