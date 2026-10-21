@@ -12,6 +12,11 @@ import com.opentune.data.model.SearchResult
 import com.opentune.data.model.ShelfItem
 import com.opentune.data.model.Song
 import android.content.Context
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import com.opentune.data.history.History
@@ -487,6 +492,45 @@ object MusicRepository {
     }
 
     /**
+     * The song a shared or pasted link names, with the radio after it, and
+     * where the song is in that list. A video YouTube Music doesn't queue is
+     * named from its upload instead, tidied: "The Weeknd - Blinding Lights
+     * (Official Video)" by "TheWeekndVEVO" plays as "Blinding Lights" by
+     * "The Weeknd".
+     */
+    suspend fun linkQueue(videoId: String): Pair<List<Song>, Int> {
+        val queue = try {
+            watchQueue(videoId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val at = queue.indexOfFirst { it.videoId == videoId }
+        if (at >= 0) return queue to at
+        val named = try {
+            upload(videoId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        val song = named ?: Song(videoId, "YouTube video", "", videoThumbnail(videoId), isVideo = true)
+        return (listOf(song) + queue) to 0
+    }
+
+    /** A video's title and channel as YouTube describes it to embeds; null when it won't say. */
+    private suspend fun upload(videoId: String): Song? = io {
+        val url = "https://www.youtube.com/oembed".toHttpUrl().newBuilder()
+            .addQueryParameter("url", "https://www.youtube.com/watch?v=$videoId")
+            .addQueryParameter("format", "json")
+            .build()
+        Http.client.newCall(Request.Builder().url(url).build()).execute().use { r ->
+            if (!r.isSuccessful) null else songFromEmbedInfo(videoId, r.body?.string().orEmpty())
+        }
+    }
+
+    /**
      * The artist page for [song]: its own id when the row carried one, else
      * the one YouTube Music's watch data credits, else the top artist result
      * for the name.
@@ -512,3 +556,18 @@ object MusicRepository {
 
     private suspend fun <T> io(block: suspend () -> T): T = withContext(Dispatchers.IO) { block() }
 }
+
+/** A song from YouTube's oEmbed answer for [videoId]: the upload's title and channel, tidied. */
+internal fun songFromEmbedInfo(videoId: String, json: String): Song? {
+    val o = runCatching { Json.parseToJsonElement(json).jsonObject }.getOrNull() ?: return null
+    val title = o["title"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: return null
+    val channel = o["author_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+    val named = com.opentune.data.lyrics.TrackNameCleaner.clean(title, channel, forDisplay = true)
+    return Song(videoId, named.title, named.artist, videoThumbnail(videoId), isVideo = true)
+}
+
+/**
+ * The 16:9 still every video has. The 4:3 one oEmbed names is letterboxed,
+ * and artwork is cropped square, so its black bars would show.
+ */
+internal fun videoThumbnail(videoId: String) = "https://i.ytimg.com/vi/$videoId/mqdefault.jpg"

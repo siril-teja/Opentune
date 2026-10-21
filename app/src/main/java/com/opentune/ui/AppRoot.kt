@@ -322,11 +322,9 @@ fun AppRoot(vm: PlayerViewModel) {
         when (val link = incoming) {
             is LinkTarget.Song -> {
                 vm.player.connected.first { it }
-                val queue = runCatching { MusicRepository.watchQueue(link.videoId) }.getOrDefault(emptyList())
-                val at = queue.indexOfFirst { it.videoId == link.videoId }
+                val (queue, at) = MusicRepository.linkQueue(link.videoId)
                 // A radio, though it arrives as a list: smart shuffle doesn't apply.
-                if (at >= 0) vm.playAll(queue, at, false, "Shared link", fromList = false)
-                else vm.play(com.opentune.data.model.Song(link.videoId, "Shared song", "", null), "Shared link")
+                vm.playAll(queue, at, false, "Shared link", fromList = false)
                 playerOpen = true
             }
             is LinkTarget.Browse -> nav.openBrowse(link.browseId)

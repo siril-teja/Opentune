@@ -43,8 +43,8 @@ class SearchViewModel : ViewModel() {
     private val _results = MutableStateFlow<UiState<List<SearchResult>>>(UiState.Loading)
     val results = _results.asStateFlow()
 
-    /** A YouTube video link in the box, and the song it names once that's been looked up. */
-    data class PastedLink(val videoId: String, val song: UiState<Song>)
+    /** A YouTube video link in the box, and the song it names once that's been looked up (null until then). */
+    data class PastedLink(val videoId: String, val song: Song?)
 
     private val _link = MutableStateFlow<PastedLink?>(null)
     val link = _link.asStateFlow()
@@ -95,11 +95,6 @@ class SearchViewModel : ViewModel() {
 
     fun retry() = run()
 
-    fun retryLink() {
-        val id = _link.value?.videoId ?: return
-        lookUp(id)
-    }
-
     /** Notices a youtube.com, youtu.be or music.youtube.com video link as it's pasted. */
     private fun readLink(text: String) {
         val id = (Links.parse(text) as? LinkTarget.Song)?.videoId
@@ -115,22 +110,10 @@ class SearchViewModel : ViewModel() {
     /** Finds the song for [id], with the radio YouTube would play after it, and plays them. */
     private fun lookUp(id: String) {
         linkJob?.cancel()
-        _link.value = PastedLink(id, UiState.Loading)
+        _link.value = PastedLink(id, null)
         linkJob = viewModelScope.launch {
-            val queue = try {
-                MusicRepository.watchQueue(id)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _link.value = PastedLink(id, UiState.Error(friendlyError(e)))
-                return@launch
-            }
-            val at = queue.indexOfFirst { it.videoId == id }
-            if (at < 0) {
-                _link.value = PastedLink(id, UiState.Error("Couldn't find that video on YouTube."))
-                return@launch
-            }
-            _link.value = PastedLink(id, UiState.Success(queue[at]))
+            val (queue, at) = MusicRepository.linkQueue(id)
+            _link.value = PastedLink(id, queue[at])
             _playLink.trySend(queue to at)
         }
     }
