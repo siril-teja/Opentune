@@ -1,2 +1,3 @@
 • Two editions in every release: a personal one for Tej's phone and a standard one for any phone; each updates itself to its own
 • Updates are offered as soon as they are published: tap Update OpenTune and it downloads and installs itself; after the first one, Android no longer asks to confirm
+• Personal edition: wynklist, english wynklist and tej's are built in
