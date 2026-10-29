@@ -312,6 +312,12 @@ object LibraryStore {
     }
 
     @Synchronized
+    /** Puts the playlists [ids] at the top, in that order; the rest keep theirs. */
+    internal fun putFirst(ids: List<String>) = update { d ->
+        val first = ids.mapNotNull { id -> d.playlists.firstOrNull { it.id == id } }
+        d.copy(playlists = first + d.playlists.filter { it.id !in ids })
+    }
+
     fun renamePlaylist(id: String, name: String) {
         val old = playlist(id)?.name ?: return
         val new = name.trim().ifEmpty { old }
