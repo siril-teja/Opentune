@@ -79,7 +79,8 @@ jobs:
           OPENTUNE_KEYSTORE_PASSWORD: ${{ secrets.OPENTUNE_KEYSTORE_PASSWORD }}
           OPENTUNE_KEY_ALIAS: ${{ secrets.OPENTUNE_KEY_ALIAS }}
           OPENTUNE_KEY_PASSWORD: ${{ secrets.OPENTUNE_KEY_PASSWORD }}
-        run: ./gradlew --no-daemon testDebugUnitTest assembleRelease
+        # The tests already ran on the pull request that brought this to main.
+        run: ./gradlew --no-daemon assembleRelease
 
       - name: Name the APKs
         if: steps.version.outputs.skip != 'true'

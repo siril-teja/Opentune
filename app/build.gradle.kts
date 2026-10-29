@@ -14,8 +14,8 @@ android {
         applicationId = "com.opentune"
         minSdk = 26
         targetSdk = 36
-        versionCode = 49
-        versionName = "0.4.25"
+        versionCode = 50
+        versionName = "0.4.26"
         // This version's store changelog, shown as What's new when a release
         // goes out before the app's own notes for it are written.
         val changelog = rootProject.file("fastlane/metadata/android/en-US/changelogs/$versionCode.txt")
@@ -57,14 +57,14 @@ android {
         }
     }
 
-    // One APK per processor type, so each is a third of the size, plus one
-    // that runs anywhere.
+    // One APK for one processor type, a third the size of one that runs anywhere.
     splits {
         abi {
             isEnable = !providers.gradleProperty("universalOnly").map { it.toBoolean() }.getOrElse(false)
             reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = true
+            // This fork is for one phone, a 64-bit ARM one: one APK, built faster.
+            include("arm64-v8a")
+            isUniversalApk = false
         }
     }
     // No encrypted dependency report in the APK: only Google can read it, and

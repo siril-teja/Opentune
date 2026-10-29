@@ -47,16 +47,16 @@ object UpdateCheck {
     private const val LATEST_PAGE = "https://github.com/siril-teja/opentune/releases/latest"
     private const val DOWNLOADS = "https://github.com/siril-teja/opentune/releases/download"
     const val RELEASES_PAGE = "https://github.com/siril-teja/opentune/releases"
-    /** How often the automatic check goes online, at most. */
-    private const val AUTO_EVERY_MS = 6L * 60 * 60 * 1000
+    /** How often the automatic check goes online, at most: each time the app is opened, within reason. */
+    private const val AUTO_EVERY_MS = 15L * 60 * 1000
     /**
      * How often it goes online while a found release is waiting: on a day
      * with several releases, the one offered should be the newest, not the
      * first one this phone happened to see.
      */
     private const val RECHECK_FOUND_MS = 20L * 60 * 1000
-    /** The processors releases carry their own APK for; anything else gets the universal one. */
-    private val BUILT_FOR = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+    /** The processors releases carry their own APK for: this fork builds for 64-bit ARM phones only. */
+    private val BUILT_FOR = listOf("arm64-v8a")
     private val TAG_IN_URL = Regex("""/releases/tag/v?([0-9][0-9A-Za-z.\-]*)$""")
 
     /** One file attached to a release. */
@@ -227,18 +227,19 @@ object UpdateCheck {
     /** Joins a remembered release's fields; not a character release notes contain. */
     private const val SEP = "\u001F"
 
-    /** Background checks, twice a day while automatic checks are on. */
+    /** Background checks, every few hours while automatic checks are on. */
     fun schedule(context: Context) {
         val work = runCatching { WorkManager.getInstance(context) }.getOrNull() ?: return
         if (!com.opentune.data.settings.AppSettings.ui.value.checkForUpdates) {
             work.cancelUniqueWork(WORK)
             return
         }
-        val request = PeriodicWorkRequestBuilder<Worker>(12, TimeUnit.HOURS)
+        val request = PeriodicWorkRequestBuilder<Worker>(3, TimeUnit.HOURS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setInitialDelay(2, TimeUnit.HOURS)
             .build()
-        work.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+        // UPDATE, so a phone that had the old twice-a-day schedule moves to the new one.
+        work.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     private const val WORK = "update-check"

@@ -31,6 +31,9 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <!-- Installing an update downloaded from GitHub Releases; Android still asks each time. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 12+: once OpenTune has installed an update itself, the next ones
+         install without Android asking again (see Updater.install). -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <!-- The phone's own equalizer, opened from the Equalizer page. -->
     <queries>

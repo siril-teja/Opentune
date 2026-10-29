@@ -163,7 +163,7 @@ fun AppRoot(vm: PlayerViewModel) {
                 if (com.opentune.data.settings.AppSettings.ui.value.checkForUpdates && update == null) {
                     update = com.opentune.data.UpdateCheck.checkIfDue(appContext)
                 }
-                kotlinx.coroutines.delay(60 * 60 * 1000L)
+                kotlinx.coroutines.delay(15 * 60 * 1000L)
             }
         }
     }
