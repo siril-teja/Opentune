@@ -20,25 +20,30 @@ class UpdateCheckTest {
         """
         {"tag_name":"v0.3.0","html_url":"https://github.com/siril-teja/opentune/releases/tag/v0.3.0","body":"Notes",
          "assets":[
-          {"name":"OpenTune-v0.3.0-armeabi-v7a.apk","browser_download_url":"https://x/v7a.apk","size":9000000},
-          {"name":"OpenTune-v0.3.0-arm64-v8a.apk","browser_download_url":"https://x/arm64.apk","size":9300000},
+          {"name":"OpenTune-v0.3.0-personal-arm64-v8a.apk","browser_download_url":"https://x/personal.apk","size":9300000},
           {"name":"OpenTune-v0.3.0-universal.apk","browser_download_url":"https://x/universal.apk","size":11800000},
           {"name":"SHA256SUMS.txt","browser_download_url":"https://x/sums","size":300}
          ]}
         """,
     ).jsonObject
 
-    @Test fun picksTheApkForThePhonesProcessor() {
-        val r = UpdateCheck.parse(release, listOf("arm64-v8a", "armeabi-v7a", "armeabi"))!!
+    @Test fun eachEditionPicksItsOwnApk() {
+        val r = UpdateCheck.parse(release, "personal-arm64-v8a")!!
         assertEquals("0.3.0", r.version)
-        assertEquals("OpenTune-v0.3.0-arm64-v8a.apk", r.apk?.name)
+        assertEquals("OpenTune-v0.3.0-personal-arm64-v8a.apk", r.apk?.name)
         assertEquals(9_300_000L, r.apk?.bytes)
         assertEquals("SHA256SUMS.txt", r.sums?.name)
         assertEquals("Notes", r.notes)
     }
 
-    @Test fun fallsBackToUniversal() {
-        assertEquals("OpenTune-v0.3.0-universal.apk", UpdateCheck.parse(release, listOf("riscv64"))?.apk?.name)
+    @Test fun theStandardEditionNeverTakesThePersonalOne() {
+        assertEquals("OpenTune-v0.3.0-universal.apk", UpdateCheck.parse(release, "universal")?.apk?.name)
+        assertNull(UpdateCheck.parse(release, "something-else")?.apk)
+    }
+
+    @Test fun anOlderArm64BuildStillFindsThePersonalApk() {
+        // v0.4.25 and earlier looked for a name ending in -arm64-v8a.apk.
+        assertTrue(UpdateCheck.parse(release, "personal-arm64-v8a")!!.apk!!.name.endsWith("-arm64-v8a.apk"))
     }
 
     @Test fun readsTheVersionFromAnApkName() {
@@ -60,14 +65,13 @@ class UpdateCheckTest {
     }
 
     @Test fun readsTheLatestReleaseFromWhereTheReleasesPageLeads() {
-        val r = UpdateCheck.fromPage("https://github.com/siril-teja/opentune/releases/tag/v0.3.3", listOf("arm64-v8a", "armeabi-v7a"))!!
+        val r = UpdateCheck.fromPage("https://github.com/siril-teja/opentune/releases/tag/v0.3.3", "personal-arm64-v8a")!!
         assertEquals("0.3.3", r.version)
-        assertEquals("OpenTune-v0.3.3-arm64-v8a.apk", r.apk?.name)
-        assertEquals("https://github.com/siril-teja/opentune/releases/download/v0.3.3/OpenTune-v0.3.3-arm64-v8a.apk", r.apk?.url)
+        assertEquals("OpenTune-v0.3.3-personal-arm64-v8a.apk", r.apk?.name)
+        assertEquals("https://github.com/siril-teja/opentune/releases/download/v0.3.3/OpenTune-v0.3.3-personal-arm64-v8a.apk", r.apk?.url)
         assertEquals("https://github.com/siril-teja/opentune/releases/download/v0.3.3/SHA256SUMS.txt", r.sums?.url)
-        // A processor releases have no APK of their own for gets the universal one.
-        assertEquals("OpenTune-v0.3.3-universal.apk", UpdateCheck.fromPage("https://github.com/siril-teja/opentune/releases/tag/v0.3.3", listOf("riscv64"))!!.apk?.name)
+        assertEquals("OpenTune-v0.3.3-universal.apk", UpdateCheck.fromPage("https://github.com/siril-teja/opentune/releases/tag/v0.3.3", "universal")!!.apk?.name)
         // No release yet: the page stays on the release list.
-        assertNull(UpdateCheck.fromPage("https://github.com/siril-teja/opentune/releases", listOf("arm64-v8a")))
+        assertNull(UpdateCheck.fromPage("https://github.com/siril-teja/opentune/releases", "universal"))
     }
 }

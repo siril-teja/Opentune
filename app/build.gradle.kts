@@ -25,6 +25,25 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Two editions from one code base, both in every release:
+    //  - personal: Tej's own, for his 64-bit ARM phone, with what's his built in;
+    //  - standard: nothing personal, runs on any phone, to give to others.
+    // Each updates itself only to its own edition's APK, named by UPDATE_ASSET
+    // (see UpdateCheck and release.yml).
+    flavorDimensions += "edition"
+    productFlavors {
+        create("personal") {
+            dimension = "edition"
+            isDefault = true
+            ndk { abiFilters += "arm64-v8a" }
+            buildConfigField("String", "UPDATE_ASSET", "\"personal-arm64-v8a\"")
+        }
+        create("standard") {
+            dimension = "edition"
+            buildConfigField("String", "UPDATE_ASSET", "\"universal\"")
+        }
+    }
+
     // A release key from the environment (CI secrets) when there is one;
     // otherwise release builds are signed with the debug key so they still
     // install. See .github/workflows/release.yml.
@@ -57,16 +76,6 @@ android {
         }
     }
 
-    // One APK for one processor type, a third the size of one that runs anywhere.
-    splits {
-        abi {
-            isEnable = !providers.gradleProperty("universalOnly").map { it.toBoolean() }.getOrElse(false)
-            reset()
-            // This fork is for one phone, a 64-bit ARM one: one APK, built faster.
-            include("arm64-v8a")
-            isUniversalApk = false
-        }
-    }
     // No encrypted dependency report in the APK: only Google can read it, and
     // F-Droid-style repositories (IzzyOnDroid) flag it.
     dependenciesInfo {

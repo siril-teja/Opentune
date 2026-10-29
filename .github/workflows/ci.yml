@@ -46,7 +46,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build, unit tests and lint
-        run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
+        # Tests and lint once, on the standard edition: the personal one is the same code.
+        run: ./gradlew --no-daemon assembleDebug testStandardDebugUnitTest lintStandardDebug
 
       - name: Release build (R8 shrinking)
         run: ./gradlew --no-daemon assembleRelease
@@ -66,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apks
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/*/release/*.apk
 
   website:
     runs-on: ubuntu-latest

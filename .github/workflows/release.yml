@@ -87,11 +87,11 @@ jobs:
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
+          # Each edition updates itself to the file named by its UPDATE_ASSET
+          # (app/build.gradle.kts); builds up to v0.4.25 look for -arm64-v8a.apk.
           mkdir dist
-          for f in app/build/outputs/apk/release/*.apk; do
-            abi=$(basename "$f" .apk | sed -e 's/^app-//' -e 's/-release$//')
-            cp "$f" "dist/OpenTune-${TAG}-${abi}.apk"
-          done
+          cp app/build/outputs/apk/personal/release/app-personal-release.apk "dist/OpenTune-${TAG}-personal-arm64-v8a.apk"
+          cp app/build/outputs/apk/standard/release/app-standard-release.apk "dist/OpenTune-${TAG}-universal.apk"
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
 
       - name: GitHub release
@@ -100,4 +100,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
         # From main this also creates the tag, on the commit that was built.
-        run: gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "OpenTune $TAG" --generate-notes
+        run: |
+          gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "OpenTune $TAG" --generate-notes --notes "**Which file?** \`OpenTune-${TAG}-universal.apk\` is the standard edition, for any phone. \`OpenTune-${TAG}-personal-arm64-v8a.apk\` is Tej's personal edition."
