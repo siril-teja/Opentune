@@ -1,11 +1,8 @@
-# Every push and pull request: build, unit tests, lint, and the shrunk
-# release APKs, so a change that breaks any of them shows up here first.
+# Every pull request: unit tests, lint, and a shrunk release build, so a change
+# that breaks any of them shows up before it reaches main.
 name: CI
 
 on:
-  push:
-    branches: ["**"]
-    tags-ignore: ["v*"]
   pull_request:
   # Or by hand, from the Actions tab.
   workflow_dispatch:
@@ -35,27 +32,17 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build, unit tests and lint
-        # Tests and lint once, on the standard edition: the personal one is the same code.
-        run: ./gradlew --no-daemon assembleDebug testStandardDebugUnitTest lintStandardDebug
-
-      - name: Release build (R8 shrinking)
-        run: ./gradlew --no-daemon assembleRelease
+      # Once, on the standard edition: the personal one is the same code. The
+      # release build is what R8 shrinking can break.
+      - name: Unit tests, lint and release build
+        run: ./gradlew --no-daemon testStandardDebugUnitTest lintStandardDebug assembleStandardRelease
 
       - name: Test and lint reports
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports
           path: |
             app/build/reports/
             app/build/test-results/
-            app/build/screenshots/
           if-no-files-found: ignore
-
-      - name: APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: apks
-          # Only the standard edition: these builds have no Secret, and anyone can download them.
-          path: app/build/outputs/apk/standard/release/*.apk
