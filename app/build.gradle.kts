@@ -1,8 +1,25 @@
+import java.security.MessageDigest
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+/**
+ * The salt and PBKDF2-HMAC-SHA256 of [secret], both as hex; AppLock.derive does the same.
+ * The salt is fixed for this app, so the hash only changes when the Secret does, and
+ * an update doesn't ask for it again.
+ */
+fun secretHash(secret: String): Pair<String, String> {
+    val salt = MessageDigest.getInstance("SHA-256").digest("OpenTune personal edition".toByteArray()).copyOf(16)
+    val spec = PBEKeySpec(secret.toCharArray(), salt, 200_000, 256)
+    val hash = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+    fun ByteArray.hex() = joinToString("") { "%02x".format(it) }
+    return salt.hex() to hash.hex()
 }
 
 android {
@@ -14,8 +31,8 @@ android {
         applicationId = "com.opentune"
         minSdk = 26
         targetSdk = 36
-        versionCode = 49
-        versionName = "0.4.25"
+        versionCode = 50
+        versionName = "0.4.26"
         // This version's store changelog, shown as What's new when a release
         // goes out before the app's own notes for it are written.
         val changelog = rootProject.file("fastlane/metadata/android/en-US/changelogs/$versionCode.txt")
@@ -23,6 +40,33 @@ android {
         buildConfigField("String", "CHANGELOG", "\"" + changelog.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // Two editions from one code base, both in every release:
+    //  - personal: Tej's own, for his 64-bit ARM phone, with what's his built in;
+    //  - standard: nothing personal, runs on any phone, to give to others.
+    // Each updates itself only to its own edition's APK, named by UPDATE_ASSET
+    // (see UpdateCheck and release.yml).
+    flavorDimensions += "edition"
+    productFlavors {
+        create("personal") {
+            dimension = "edition"
+            isDefault = true
+            ndk { abiFilters += "arm64-v8a" }
+            buildConfigField("String", "UPDATE_ASSET", "\"personal-arm64-v8a\"")
+            // The Secret the app asks for once (see AppLock), from the
+            // OPENTUNE_PERSONAL_SECRET secret; only a salted hash goes in the APK.
+            val secret = System.getenv("OPENTUNE_PERSONAL_SECRET").orEmpty().trim()
+            val (salt, hash) = if (secret.isEmpty()) "" to "" else secretHash(secret)
+            buildConfigField("String", "SECRET_SALT", "\"$salt\"")
+            buildConfigField("String", "SECRET_HASH", "\"$hash\"")
+        }
+        create("standard") {
+            dimension = "edition"
+            buildConfigField("String", "UPDATE_ASSET", "\"universal\"")
+            buildConfigField("String", "SECRET_SALT", "\"\"")
+            buildConfigField("String", "SECRET_HASH", "\"\"")
+        }
     }
 
     // A release key from the environment (CI secrets) when there is one;
@@ -57,16 +101,6 @@ android {
         }
     }
 
-    // One APK per processor type, so each is a third of the size, plus one
-    // that runs anywhere.
-    splits {
-        abi {
-            isEnable = !providers.gradleProperty("universalOnly").map { it.toBoolean() }.getOrElse(false)
-            reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = true
-        }
-    }
     // No encrypted dependency report in the APK: only Google can read it, and
     // F-Droid-style repositories (IzzyOnDroid) flag it.
     dependenciesInfo {
@@ -202,7 +236,4 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
-
-
-
 

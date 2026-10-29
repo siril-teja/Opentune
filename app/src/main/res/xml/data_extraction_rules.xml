@@ -5,6 +5,7 @@
         <exclude domain="sharedpref" path="spotiflac.xml" />
         <exclude domain="sharedpref" path="usage_v2.xml" />
         <exclude domain="sharedpref" path="account.xml" />
+        <exclude domain="sharedpref" path="lock.xml" />
         <exclude domain="sharedpref" path="lastfm.xml" />
         <exclude domain="sharedpref" path="subsonic.xml" />
         <exclude domain="sharedpref" path="listenbrainz.xml" />
@@ -13,6 +14,7 @@
         <exclude domain="sharedpref" path="spotiflac.xml" />
         <exclude domain="sharedpref" path="usage_v2.xml" />
         <exclude domain="sharedpref" path="account.xml" />
+        <exclude domain="sharedpref" path="lock.xml" />
         <exclude domain="sharedpref" path="lastfm.xml" />
         <exclude domain="sharedpref" path="subsonic.xml" />
         <exclude domain="sharedpref" path="listenbrainz.xml" />

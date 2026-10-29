@@ -36,8 +36,14 @@ class MainActivity : ComponentActivity() {
             val ui by AppSettings.ui.collectAsState()
             LaunchedEffect(ui.highRefreshRate) { preferRefreshRate(ui.highRefreshRate) }
             val song by vm.currentSong.collectAsState()
+            val locked by com.opentune.data.AppLock.locked.collectAsState()
             OpenTuneTheme(theme, artworkSeed = rememberArtworkSeed(song?.thumbnailUrl)) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    // The personal edition, on a phone that hasn't been given the Secret yet.
+                    if (locked) {
+                        com.opentune.ui.SecretScreen()
+                        return@Surface
+                    }
                     // A fresh install's welcome comes first; Home, built after it, starts from the picks.
                     androidx.compose.animation.AnimatedContent(
                         ui.welcome == WelcomeState.DUE,

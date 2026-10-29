@@ -5,7 +5,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
@@ -47,16 +46,16 @@ object UpdateCheck {
     private const val LATEST_PAGE = "https://github.com/siril-teja/opentune/releases/latest"
     private const val DOWNLOADS = "https://github.com/siril-teja/opentune/releases/download"
     const val RELEASES_PAGE = "https://github.com/siril-teja/opentune/releases"
-    /** How often the automatic check goes online, at most. */
-    private const val AUTO_EVERY_MS = 6L * 60 * 60 * 1000
+    /** How often the automatic check goes online, at most: each time the app is opened, within reason. */
+    private const val AUTO_EVERY_MS = 15L * 60 * 1000
     /**
      * How often it goes online while a found release is waiting: on a day
      * with several releases, the one offered should be the newest, not the
      * first one this phone happened to see.
      */
     private const val RECHECK_FOUND_MS = 20L * 60 * 1000
-    /** The processors releases carry their own APK for; anything else gets the universal one. */
-    private val BUILT_FOR = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+    /** The end of this edition's APK name in a release: OpenTune-vX.Y.Z-[ASSET].apk. */
+    private val ASSET = BuildConfig.UPDATE_ASSET
     private val TAG_IN_URL = Regex("""/releases/tag/v?([0-9][0-9A-Za-z.\-]*)$""")
 
     /** One file attached to a release. */
@@ -66,7 +65,7 @@ object UpdateCheck {
         val version: String,
         val page: String,
         val notes: String,
-        /** The APK for this phone's processor, or the universal one; null when neither is attached. */
+        /** This edition's APK; null when the release doesn't carry one. */
         val apk: Asset?,
         /** SHA256SUMS.txt, when the release has one. */
         val sums: Asset?,
@@ -80,14 +79,13 @@ object UpdateCheck {
     }
 
     suspend fun check(): Result = withContext(Dispatchers.IO) {
-        val abis = Build.SUPPORTED_ABIS.toList()
         val viaApi = runCatching {
             Http.client.newCall(
                 Request.Builder().url(LATEST).header("Accept", "application/vnd.github+json").build(),
             ).execute().use { r ->
                 if (r.code == 404) return@use Result.NoReleases
                 if (!r.isSuccessful) return@use Result.Failed("GitHub answered ${r.code}")
-                val release = parse(Json.parseToJsonElement(r.body?.string().orEmpty()).jsonObject, abis)
+                val release = parse(Json.parseToJsonElement(r.body?.string().orEmpty()).jsonObject)
                     ?: return@use Result.NoReleases
                 compare(release)
             }
@@ -98,7 +96,7 @@ object UpdateCheck {
         runCatching {
             Http.client.newCall(Request.Builder().url(LATEST_PAGE).build()).execute().use { r ->
                 if (!r.isSuccessful) return@use Result.Failed("GitHub answered ${r.code}")
-                val release = fromPage(r.request.url.toString(), abis) ?: return@use Result.NoReleases
+                val release = fromPage(r.request.url.toString()) ?: return@use Result.NoReleases
                 compare(release)
             }
         }.getOrElse { viaApi }
@@ -152,10 +150,9 @@ object UpdateCheck {
      * in /releases/tag/vX.Y.Z), with its files' addresses built from the
      * names every release uses. Sizes and notes aren't known this way.
      */
-    internal fun fromPage(finalUrl: String, abis: List<String>): Release? {
+    internal fun fromPage(finalUrl: String, asset: String = ASSET): Release? {
         val version = TAG_IN_URL.find(finalUrl.substringBefore('?'))?.groupValues?.get(1) ?: return null
-        val abi = abis.firstOrNull { it in BUILT_FOR } ?: "universal"
-        val name = "OpenTune-v$version-$abi.apk"
+        val name = "OpenTune-v$version-$asset.apk"
         return Release(
             version = version,
             page = "$RELEASES_PAGE/tag/v$version",
@@ -227,18 +224,19 @@ object UpdateCheck {
     /** Joins a remembered release's fields; not a character release notes contain. */
     private const val SEP = "\u001F"
 
-    /** Background checks, twice a day while automatic checks are on. */
+    /** Background checks, every few hours while automatic checks are on. */
     fun schedule(context: Context) {
         val work = runCatching { WorkManager.getInstance(context) }.getOrNull() ?: return
         if (!com.opentune.data.settings.AppSettings.ui.value.checkForUpdates) {
             work.cancelUniqueWork(WORK)
             return
         }
-        val request = PeriodicWorkRequestBuilder<Worker>(12, TimeUnit.HOURS)
+        val request = PeriodicWorkRequestBuilder<Worker>(3, TimeUnit.HOURS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setInitialDelay(2, TimeUnit.HOURS)
             .build()
-        work.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+        // UPDATE, so a phone that had the old twice-a-day schedule moves to the new one.
+        work.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     private const val WORK = "update-check"
@@ -285,8 +283,8 @@ object UpdateCheck {
         }
     }
 
-    /** A GitHub release object, with the APK picked for [abis] (most preferred first). */
-    internal fun parse(obj: JsonObject, abis: List<String>): Release? {
+    /** A GitHub release object, with this edition's APK ([asset]) picked from its files. */
+    internal fun parse(obj: JsonObject, asset: String = ASSET): Release? {
         val tag = obj.str("tag_name")?.removePrefix("v") ?: return null
         val assets = (obj["assets"] as? JsonArray).orEmpty().mapNotNull { a ->
             val o = a as? JsonObject ?: return@mapNotNull null
@@ -297,8 +295,7 @@ object UpdateCheck {
             )
         }
         val apks = assets.filter { it.name.endsWith(".apk") }
-        val apk = abis.firstNotNullOfOrNull { abi -> apks.firstOrNull { it.name.endsWith("-$abi.apk") } }
-            ?: apks.firstOrNull { it.name.endsWith("-universal.apk") }
+        val apk = apks.firstOrNull { it.name.endsWith("-$asset.apk") }
         return Release(
             version = tag,
             page = obj.str("html_url") ?: RELEASES_PAGE,
