@@ -67,7 +67,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apks
-          path: app/build/outputs/apk/*/release/*.apk
+          # Only the standard edition: these builds have no Secret, and anyone can download them.
+          path: app/build/outputs/apk/standard/release/*.apk
 
   website:
     runs-on: ubuntu-latest

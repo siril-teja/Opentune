@@ -5,6 +5,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+/**
+ * The salt and PBKDF2-HMAC-SHA256 of [secret], both as hex; AppLock.derive does the same.
+ * The salt is fixed for this app, so the hash only changes when the Secret does, and
+ * an update doesn't ask for it again.
+ */
+fun secretHash(secret: String): Pair<String, String> {
+    val salt = java.security.MessageDigest.getInstance("SHA-256").digest("OpenTune personal edition".toByteArray()).copyOf(16)
+    val spec = javax.crypto.spec.PBEKeySpec(secret.toCharArray(), salt, 200_000, 256)
+    val hash = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+    fun ByteArray.hex() = joinToString("") { "%02x".format(it) }
+    return salt.hex() to hash.hex()
+}
+
 android {
     namespace = "com.opentune"
     // InnerTubeX's AAR is compiled against 37; targetSdk (runtime behaviour) stays 36.
@@ -37,10 +50,18 @@ android {
             isDefault = true
             ndk { abiFilters += "arm64-v8a" }
             buildConfigField("String", "UPDATE_ASSET", "\"personal-arm64-v8a\"")
+            // The Secret the app asks for once (see AppLock), from the
+            // OPENTUNE_PERSONAL_SECRET secret; only a salted hash goes in the APK.
+            val secret = System.getenv("OPENTUNE_PERSONAL_SECRET").orEmpty().trim()
+            val (salt, hash) = if (secret.isEmpty()) "" to "" else secretHash(secret)
+            buildConfigField("String", "SECRET_SALT", "\"$salt\"")
+            buildConfigField("String", "SECRET_HASH", "\"$hash\"")
         }
         create("standard") {
             dimension = "edition"
             buildConfigField("String", "UPDATE_ASSET", "\"universal\"")
+            buildConfigField("String", "SECRET_SALT", "\"\"")
+            buildConfigField("String", "SECRET_HASH", "\"\"")
         }
     }
 
@@ -211,7 +232,4 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
-
-
-
 

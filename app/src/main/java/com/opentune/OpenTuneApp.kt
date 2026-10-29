@@ -95,6 +95,7 @@ class OpenTuneApp : Application(), SingletonImageLoader.Factory {
         AutoEq.init(this)
         com.opentune.data.library.LibraryArtwork.init(this)
         LibraryStore.init(this)
+        com.opentune.data.AppLock.init(this)
         // The personal edition's own playlists, on first start.
         com.opentune.data.library.Preloaded.addMissing(this)
         Downloads.init(this)
