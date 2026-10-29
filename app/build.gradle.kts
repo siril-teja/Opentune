@@ -1,3 +1,7 @@
+import java.security.MessageDigest
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,9 +15,9 @@ plugins {
  * an update doesn't ask for it again.
  */
 fun secretHash(secret: String): Pair<String, String> {
-    val salt = java.security.MessageDigest.getInstance("SHA-256").digest("OpenTune personal edition".toByteArray()).copyOf(16)
-    val spec = javax.crypto.spec.PBEKeySpec(secret.toCharArray(), salt, 200_000, 256)
-    val hash = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+    val salt = MessageDigest.getInstance("SHA-256").digest("OpenTune personal edition".toByteArray()).copyOf(16)
+    val spec = PBEKeySpec(secret.toCharArray(), salt, 200_000, 256)
+    val hash = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
     fun ByteArray.hex() = joinToString("") { "%02x".format(it) }
     return salt.hex() to hash.hex()
 }
