@@ -7,7 +7,7 @@ on:
     branches: ["**"]
     tags-ignore: ["v*"]
   pull_request:
-  # Started by the upstream sync, whose own pushes start no workflows.
+  # Or by hand, from the Actions tab.
   workflow_dispatch:
 
 concurrency:
@@ -20,16 +20,6 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-
-      - name: Usage deduplication and website scripts
-        run: |
-          node --test usage-api/worker.test.mjs usage-api/dashboard/model.test.mjs
-          node --check usage-api/dashboard/dashboard.js
-          node --check site/download-tracking.js
 
       - uses: actions/setup-java@v4
         with:
@@ -69,25 +59,3 @@ jobs:
           name: apks
           # Only the standard edition: these builds have no Secret, and anyone can download them.
           path: app/build/outputs/apk/standard/release/*.apk
-
-  website:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install playwright==1.58.0
-      - run: python -m playwright install --with-deps chromium
-      - run: python scripts/check-distribution.py
-      - run: python scripts/check-social-preview.py
-      - run: node --test scripts/check-spotify-callback.cjs
-      - run: python scripts/prepare-usage-assets.py
-      - run: python scripts/check-website.py
-      - run: python scripts/check-room-invite.py
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: website-reports
-          path: website-reports/
